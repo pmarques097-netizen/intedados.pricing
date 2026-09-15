@@ -1970,6 +1970,42 @@ def normalizar_cnpj_eirox(valor):
         return ""
 
 
+def normalizar_cnpj_eirox_serie(serie):
+    """V8.29 PERFORMANCE: normalização vetorizada, sem .apply linha a linha."""
+    try:
+        s = serie.astype("string").fillna("").str.replace(r"\D", "", regex=True)
+        s = s.where(s.ne("") & s.ne("0"), "")
+        mask = s.ne("")
+        s = s.where(~mask, s.str.zfill(14))
+        return s.astype(str)
+    except Exception:
+        return pd.Series("", index=getattr(serie, "index", None), dtype=str)
+
+
+@st.cache_data(show_spinner=False, max_entries=16)
+def _carregar_cnpjs_cliente_cacheado(caminho_str, assinatura):
+    try:
+        caminho = Path(caminho_str)
+        try:
+            cadastro = pd.read_csv(
+                caminho, sep=";", dtype=str, encoding="utf-8-sig"
+            )
+        except Exception:
+            cadastro = pd.read_csv(
+                caminho, dtype=str, encoding="utf-8-sig"
+            )
+
+        if cadastro.empty or "CNPJ" not in cadastro.columns:
+            return set(), cadastro
+
+        cadastro["CNPJ_Limpo"] = normalizar_cnpj_eirox_serie(cadastro["CNPJ"])
+        cnpjs = set(cadastro["CNPJ_Limpo"].dropna().astype(str).str.strip())
+        cnpjs = {c for c in cnpjs if c and c != "00000000000000"}
+        return cnpjs, cadastro
+    except Exception:
+        return set(), pd.DataFrame()
+
+
 def carregar_cnpjs_cliente():
     try:
         if not ARQUIVO_CADASTRO_CNPJ_CLIENTE.exists():
@@ -1989,32 +2025,14 @@ def carregar_cnpjs_cliente():
                 encoding="utf-8-sig"
             )
 
-        try:
-            cadastro = pd.read_csv(
-                ARQUIVO_CADASTRO_CNPJ_CLIENTE,
-                sep=";",
-                dtype=str,
-                encoding="utf-8-sig"
-            )
-        except Exception:
-            cadastro = pd.read_csv(
-                ARQUIVO_CADASTRO_CNPJ_CLIENTE,
-                dtype=str,
-                encoding="utf-8-sig"
-            )
-
-        if cadastro.empty or "CNPJ" not in cadastro.columns:
-            return set(), cadastro
-
-        cadastro["CNPJ_Limpo"] = cadastro["CNPJ"].apply(normalizar_cnpj_eirox)
-        cnpjs = set(cadastro["CNPJ_Limpo"].dropna().astype(str).str.strip())
-        cnpjs = {c for c in cnpjs if c and c != "00000000000000"}
-
-        return cnpjs, cadastro
-
+        return _carregar_cnpjs_cliente_cacheado(
+            str(ARQUIVO_CADASTRO_CNPJ_CLIENTE.resolve()),
+            _assinatura_arquivo_cadastro_eirox(ARQUIVO_CADASTRO_CNPJ_CLIENTE)
+            if "_assinatura_arquivo_cadastro_eirox" in globals()
+            else str(ARQUIVO_CADASTRO_CNPJ_CLIENTE.stat().st_mtime_ns),
+        )
     except Exception:
         return set(), pd.DataFrame()
-
 
 def encontrar_coluna_cnpj_cliente(base):
     try:
@@ -2056,7 +2074,7 @@ def aplicar_classificacao_cliente_concorrente(base, nome_base=""):
             base["CNPJ_Limpo"] = ""
             return base
 
-        base["CNPJ_Limpo"] = base[col_cnpj].apply(normalizar_cnpj_eirox)
+        base["CNPJ_Limpo"] = normalizar_cnpj_eirox_serie(base[col_cnpj])
 
         base["Tipo_Estabelecimento"] = np.where(
             base["CNPJ_Limpo"].isin(cnpjs_cliente),
@@ -2098,10 +2116,19 @@ ARQ_CLIENTE_CNPJS = Path("CADASTRO_CLIENTE_CNPJS.csv")
 ARQ_USUARIOS_CLIENTES = Path("CADASTRO_USUARIOS_CLIENTES.csv")
 
 
-def _ler_csv_cadastro_eirox(caminho, colunas):
+def _assinatura_arquivo_cadastro_eirox(caminho):
     try:
-        if not caminho.exists():
-            pd.DataFrame(columns=colunas).to_csv(caminho, index=False, sep=";", encoding="utf-8-sig")
+        stt = caminho.stat()
+        return f"{stt.st_size}:{stt.st_mtime_ns}"
+    except Exception:
+        return "0:0"
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def _ler_csv_cadastro_eirox_cacheado(caminho_str, assinatura, colunas_tuple):
+    caminho = Path(caminho_str)
+    colunas = list(colunas_tuple)
+    try:
         try:
             df = pd.read_csv(caminho, sep=";", dtype=str, encoding="utf-8-sig")
         except Exception:
@@ -2114,6 +2141,21 @@ def _ler_csv_cadastro_eirox(caminho, colunas):
         return pd.DataFrame(columns=colunas)
 
 
+def _ler_csv_cadastro_eirox(caminho, colunas):
+    try:
+        if not caminho.exists():
+            pd.DataFrame(columns=colunas).to_csv(
+                caminho, index=False, sep=";", encoding="utf-8-sig"
+            )
+        return _ler_csv_cadastro_eirox_cacheado(
+            str(caminho.resolve()),
+            _assinatura_arquivo_cadastro_eirox(caminho),
+            tuple(colunas),
+        ).copy(deep=False)
+    except Exception:
+        return pd.DataFrame(columns=colunas)
+
+
 def _salvar_csv_cadastro_eirox(df, caminho, colunas):
     try:
         df = df.copy()
@@ -2121,6 +2163,10 @@ def _salvar_csv_cadastro_eirox(df, caminho, colunas):
             if col not in df.columns:
                 df[col] = ""
         df[colunas].fillna("").to_csv(caminho, index=False, sep=";", encoding="utf-8-sig")
+        try:
+            _ler_csv_cadastro_eirox_cacheado.clear()
+        except Exception:
+            pass
         return True
     except Exception:
         return False
@@ -2200,7 +2246,7 @@ def cnpjs_principais_do_usuario():
             & cnpjs["Status"].astype(str).str.upper().str.strip().ne("INATIVO")
         ].copy()
 
-        cnpjs["CNPJ_Limpo"] = cnpjs["CNPJ"].apply(normalizar_cnpj_eirox)
+        cnpjs["CNPJ_Limpo"] = normalizar_cnpj_eirox_serie(cnpjs["CNPJ"])
         return {
             c for c in cnpjs["CNPJ_Limpo"].dropna().astype(str).str.strip().tolist()
             if c and c != "00000000000000"
@@ -2223,7 +2269,7 @@ def aplicar_classificacao_principal_concorrente(base, nome_base=""):
             return base
 
         principais = cnpjs_principais_do_usuario()
-        base["CNPJ_Limpo"] = base[col_cnpj].apply(normalizar_cnpj_eirox)
+        base["CNPJ_Limpo"] = normalizar_cnpj_eirox_serie(base[col_cnpj])
         base["Tipo_Estabelecimento"] = np.where(base["CNPJ_Limpo"].isin(principais), "Principal", "Concorrente")
         base.loc[base["CNPJ_Limpo"].astype(str).str.strip().eq(""), "Tipo_Estabelecimento"] = "Sem CNPJ"
         return base
