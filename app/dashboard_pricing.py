@@ -2620,7 +2620,7 @@ def renderizar_cadastro_cnpj_cliente_sidebar():
     try:
         cnpjs, cadastro = carregar_cnpjs_cliente()
 
-        with st.sidebar.expander("🏪 Cadastro CNPJ Cliente", expanded=False):
+        with st.sidebar.container(key="sb_cfg_v67_cnpj").expander("🏪 Cadastro CNPJ Cliente", expanded=False):
             st.caption(f"CNPJs próprios cadastrados: {len(cnpjs)}")
             st.caption("Arquivo: CADASTRO_CLIENTE_CNPJ.csv")
             st.caption("Não cadastrado = Concorrente")
@@ -3239,7 +3239,7 @@ def renderizar_resumo_cadastro_sidebar():
     try:
         clientes = carregar_clientes_cadastro()
         clientes_ativos = clientes[clientes["Status"].astype(str).str.upper().str.strip().ne("INATIVO")] if not clientes.empty else clientes
-        with st.sidebar.expander("🏢 Gestão de Clientes", expanded=False):
+        with st.sidebar.container(key="sb_cfg_v67_gcli").expander("🏢 Gestão de Clientes", expanded=False):
             st.caption(f"Clientes ativos: {len(clientes_ativos)}")
             st.caption(f"Usuário: {usuario_logado_intedados()}")
             st.caption(f"CNPJs principais: {len(cnpjs_principais_do_usuario())}")
@@ -8812,10 +8812,16 @@ def intedados_menu_unico_sidebar(paginas_cliente, paginas_admin, plano_atual):
     def _nav_v11(page, prefix):
         rot = _rotulo_v11(page)
         key = f"intedados_nav_v11_{prefix}_{hashlib.md5(str(page).encode('utf-8')).hexdigest()[:10]}"
-        ativo = page == st.session_state.get("intedados_pagina_global")
+        _especial67 = bool(st.session_state.get("v60_abrir") or st.session_state.get("v59_abrir"))
+        ativo = page == st.session_state.get("intedados_pagina_global") and not _especial67
         icone = _ICONES_V11.get(rot.lower(), "chevron_right")
-        if st.button(rot, key=key, icon=f":material/{icone}:",
+        _q67 = (st.session_state.get("_v67_qtd") or {}).get(rot.lower())  # V67: contador da tela
+        if st.button(f"{rot}  ·  {_q67}" if _q67 else rot, key=key, icon=f":material/{icone}:",
                      type="primary" if ativo else "tertiary", use_container_width=True):
+            st.session_state["v60_abrir"] = False  # V67: volta das telas especiais
+            st.session_state["v59_abrir"] = False
+            if _especial67 and page == st.session_state.get("intedados_pagina_global"):
+                st.rerun()
             if not ativo:
                 st.session_state["intedados_pagina_global"] = page
                 st.rerun()
@@ -8838,6 +8844,8 @@ def intedados_menu_unico_sidebar(paginas_cliente, paginas_admin, plano_atual):
             _titulo_grupo_v11("Gestão")
             for p in outras:
                 _nav_v11(p, "cliente")
+        if "_v67_nav_extras" in globals():  # V67: Fornecedores no grupo Gestão
+            _v67_nav_extras(_titulo_grupo_v11, bool(outras))
         if usuario_master() and paginas_admin:
             _admin_ativo = st.session_state.get("intedados_pagina_global") in paginas_admin
             with st.expander(f"Administração Intedados · {len(paginas_admin)}",
@@ -23066,11 +23074,7 @@ _v59_rede_anterior = intedados_renderizar_rede_principal_sidebar
 
 
 def intedados_renderizar_rede_principal_sidebar():
-    r = _v59_rede_anterior()
-    if st.session_state.get("v59_abrir") and intedados_usuario_admin_rede():
-        _v59_tela_usuarios_redes()
-        st.stop()
-    return r
+    return _v59_rede_anterior()  # V67b: a tela abre junto com Fornecedores, com o menu completo
 
 
 
@@ -23232,10 +23236,7 @@ _v60_rede_anterior = intedados_renderizar_rede_principal_sidebar
 
 def intedados_renderizar_rede_principal_sidebar():
     r = _v60_rede_anterior()
-    if _v60_pode():
-        st.sidebar.container(key="sb_cfg_v65_forn").toggle("🏭 Fornecedores", key="v60_abrir", value=False)  # V65: junto das configurações
-        if st.session_state.get("v60_abrir"):
-            st.session_state["_v60_pendente"] = True
+    pass  # V67: Fornecedores agora é item do menu (grupo Gestão)
     return r
 
 
@@ -23319,6 +23320,136 @@ def _v51_validar(tok):
         return usuario
     except Exception:
         return None
+
+
+
+# ============================================================
+# V67 — MENU LATERAL: cartão único no topo, Administração única, usuário no rodapé.
+# ============================================================
+def _v67_nav_extras(titulo_fn, tem_gestao):
+    try:
+        if not _v60_pode():
+            return
+        if not tem_gestao:
+            titulo_fn("Gestão")
+        on = bool(st.session_state.get("v60_abrir"))
+        if st.button("Fornecedores", key="v67_nav_forn", icon=":material/factory:",
+                     type="primary" if on else "tertiary", use_container_width=True):
+            st.session_state["v60_abrir"] = True
+            st.session_state["v59_abrir"] = False
+            st.rerun()
+    except Exception:
+        pass
+
+
+_v67_registro_dados = _v47_dados
+
+
+def _v47_dados(base, acao):
+    r = _v67_registro_dados(base, acao)
+    try:
+        nome = {"SUBIR PREÇO": "subir preço", "BAIXAR PREÇO": "baixar preço", "NEGOCIAR COMPRA": "negociar compra"}.get(acao)
+        if nome:
+            st.session_state.setdefault("_v67_qtd", {})[nome] = int(r.get("qtd") or 0)
+    except Exception:
+        pass
+    return r
+
+
+def _v67_topo():
+    """Cartão único: rede principal + seletor de cliente; administração e usuário."""
+    import html as _h
+    admin = bool(intedados_usuario_admin_rede())
+    try:
+        rede = intedados_nome_rede_principal() if "intedados_nome_rede_principal" in globals() else ""
+    except Exception:
+        rede = ""
+    rede = str(rede or globals().get("nome_empresa_contexto", "") or "Cliente em contexto").strip()
+    seg = ""
+    clientes = _v51_clientes()
+    if admin and len(clientes) > 1:
+        usuario = str(st.session_state.get("usuario") or "")
+        itens = []
+        for cod, info in clientes.items():
+            nome = _h.escape(str(info.get("rotulo", cod)))
+            if cod.upper() == INTEDADOS_CLIENTE:
+                itens.append(f'<span class="v67-on">{nome}</span>')
+            else:
+                url, tok = _v62_url(info), _v51_passe(usuario, cod.upper())
+                if url and tok:
+                    itens.append(f'<a target="_self" href="{_h.escape(url)}/?passe={tok}">{nome}</a>')
+        seg = f'<div class="v67-seg">{"".join(itens)}</div>'
+    rot = "CLIENTE · REDE PRINCIPAL" if seg else "REDE PRINCIPAL"
+    st.sidebar.container(key="sb_v67_topo").markdown(
+        f'<div class="v67-card"><div class="v67-lbl">{rot}</div><div class="v67-rede">{_h.escape(rede)}</div>{seg}</div>',
+        unsafe_allow_html=True)
+
+    # Administração única (fechada por padrão): mostra/esconde as ferramentas do fim do menu
+    aberta = bool(st.session_state.get("v67_adm_aberta", False))
+    rotulo = "Administração" if admin else "Configurações"
+    if st.sidebar.container(key="sb_v67_admtg").button(
+            rotulo, key="v67_admtg", icon=":material/admin_panel_settings:" if admin else ":material/settings:",
+            type="tertiary", use_container_width=True):
+        st.session_state["v67_adm_aberta"] = not aberta
+        st.rerun()
+    if aberta and admin:
+        on = bool(st.session_state.get("v59_abrir"))
+        if st.sidebar.container(key="sb_cfg_v67_usr").button(
+                "Usuários e Redes", key="v67_nav_usr", icon=":material/group:",
+                type="primary" if on else "tertiary", use_container_width=True):
+            st.session_state["v59_abrir"] = True
+            st.session_state["v60_abrir"] = False
+            st.rerun()
+
+    nome_u = _h.escape(str(st.session_state.get("nome_usuario") or st.session_state.get("usuario") or ""))
+    perfil = _h.escape(str(st.session_state.get("perfil_usuario") or ""))
+    ini = "".join(p[0] for p in nome_u.split()[:2]).upper() or "•"
+    st.sidebar.container(key="sb_v67_user").markdown(
+        f'<div class="v67-user"><div class="v67-av">{ini}</div><div><b>{nome_u}</b><span>{perfil}</span></div></div>',
+        unsafe_allow_html=True)
+
+    esconder = "" if aberta else """
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has([class*="st-key-sb_cfg"]),
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_aud){display:none !important}"""
+    st.sidebar.markdown(f"""<style id="intedados-v67-menu">
+        .st-key-sb_rede_card, .st-key-sb_v65_cliente, .st-key-sb_cfg_t{{display:none !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_rede_card),
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_cfg_t){{display:none !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v67_topo){{order:-9 !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_rede_alt){{order:-8 !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-intedados_municipio_global_select){{order:-8 !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v67_exportar){{order:48 !important}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v67_admtg){{order:49 !important;
+            border-top:1px solid rgba(121,174,238,.12);padding-top:6px;margin-top:8px}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has([class*="st-key-sb_cfg"]),
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_aud){{margin-left:16px;border-left:1px solid rgba(121,174,238,.18);padding-left:6px}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v67_user){{order:98 !important;
+            border-top:1px solid rgba(121,174,238,.12);padding-top:10px;margin-top:10px}}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v67_sair){{order:99 !important}}
+        {esconder}
+        .v67-card{{border:1px solid rgba(121,174,238,.18);background:rgba(255,255,255,.035);border-radius:12px;padding:10px 11px;margin:4px 0 2px}}
+        .v67-lbl{{font-size:.6rem;letter-spacing:.12em;color:#6f8cab;font-weight:700}}
+        .v67-rede{{font-size:.92rem;font-weight:700;color:#fff;margin:3px 0 0}}
+        .v67-seg{{display:flex;gap:4px;padding:3px;border-radius:9px;background:rgba(0,0,0,.25);margin-top:8px}}
+        .v67-seg a,.v67-seg span{{flex:1;text-align:center;padding:5px 0;border-radius:7px;font-size:.78rem;font-weight:700;color:#9fb3cc!important;text-decoration:none!important}}
+        .v67-seg a:hover{{background:rgba(120,160,255,.12);color:#fff!important}}
+        .v67-seg .v67-on{{background:linear-gradient(135deg,#2f6bff,#7b4dff);color:#fff!important;box-shadow:0 3px 10px rgba(70,90,255,.35)}}
+        .st-key-sb_rede_alt [data-testid="stExpander"] summary{{padding:4px 10px !important;font-size:.8rem !important;color:#8fa6c2 !important}}
+        .st-key-sb_rede_alt{{margin-top:2px !important}}
+        .v67-user{{display:flex;align-items:center;gap:10px;padding:2px 6px}}
+        .v67-av{{width:30px;height:30px;border-radius:50%;background:#1d3354;display:grid;place-items:center;font-weight:700;font-size:.75rem;color:#cfe0ff;flex:0 0 30px}}
+        .v67-user b{{font-size:.82rem;display:block;color:#eaf2fb}}.v67-user span{{font-size:.72rem;color:#7f93ad}}
+        .st-key-sb_v67_sair button{{border:0 !important;background:transparent !important;color:#8fa6c2 !important;min-height:30px !important}}
+        .st-key-sb_v67_sair button:hover{{color:#fff !important;background:rgba(255,255,255,.045) !important}}
+        .st-key-sb_v67_admtg button{{border:0 !important;background:transparent !important;color:#c6d6e8 !important}}
+    </style>""", unsafe_allow_html=True)
+
+
+def _v51_seletor_cliente():  # V67: o seletor agora faz parte do cartão do topo
+    try:
+        _v67_topo()
+    except Exception:
+        pass
 
 
 _v51_login_por_passe()
@@ -25267,7 +25398,7 @@ def intedados_v270_render_exportacao_global(base, pagina_atual, chave_filtros):
     key_dados = f"intedados_v270_excel_dados_{token}"
     key_resumo = f"intedados_v270_excel_resumo_{token}"
 
-    with st.sidebar.expander("📤 Exportar esta seleção", expanded=False):
+    with st.sidebar.container(key="sb_v67_exportar").expander("📤 Exportar esta seleção", expanded=False):
         st.caption(str(pagina_atual))
         st.caption(f"{len(base):,} registro(s) filtrado(s)".replace(",", "."))
 
@@ -28106,7 +28237,7 @@ _m14(22226)  # perf_v14
 try:
     if usuario_master():
         _meta_v200 = intedados_v200_ler_metadata(_intedados_sig_master)
-        with st.sidebar.expander("⚙️ Base Analítica 2.0", expanded=False):
+        with st.sidebar.container(key="sb_cfg_v67_base").expander("⚙️ Base Analítica 2.0", expanded=False):
             if _meta_v200:
                 st.caption(f"Última geração: {_meta_v200.get('gerado_em', '—')}")
                 st.caption(f"Produtos/linhas: {_meta_v200.get('linhas', 0):,}".replace(",", "."))
@@ -28138,7 +28269,7 @@ except Exception:
 _m14(22258)  # perf_v14
 try:
     if usuario_master() and isinstance(df, pd.DataFrame) and not df.empty:
-        with st.sidebar.expander("🧭 Camada Oficial de Dados", expanded=False):
+        with st.sidebar.container(key="sb_cfg_v67_camada").expander("🧭 Camada Oficial de Dados", expanded=False):
             _tot_v210 = int(len(df))
             _completo_v210 = int(
                 df.get(
@@ -28163,7 +28294,7 @@ except Exception:
 _m14(22282)  # perf_v14
 try:
     if usuario_master():
-        with st.sidebar.expander("🧩 Núcleo Multi-Cliente", expanded=False):
+        with st.sidebar.container(key="sb_cfg_v67_nucleo").expander("🧩 Núcleo Multi-Cliente", expanded=False):
             _manifest_v280 = intedados_v280_core_manifest()
             st.caption(f"Núcleo: {_manifest_v280['Núcleo']}")
             st.caption(f"Ruleset: {_manifest_v280['Ruleset']}")
@@ -28198,7 +28329,7 @@ _m14(22313)  # perf_v14
 st.sidebar.markdown("---")
 
 _m14(22315)  # perf_v14
-if st.sidebar.button(
+if st.sidebar.container(key="sb_v67_sair").button(
     "🚪 Sair do sistema",
     use_container_width=True
 ):
@@ -28414,6 +28545,10 @@ def _v45_dados(projeto_sel, periodo):
 if "_intedados_v18_memo" in globals():
     _v45_resumo_local = _intedados_v18_memo(_v45_resumo_local)
 
+
+if st.session_state.get("v59_abrir") and intedados_usuario_admin_rede():  # V67b: Usuários e Redes com o menu completo
+    _v59_tela_usuarios_redes()
+    st.stop()
 
 if st.session_state.get("v60_abrir") and _v60_pode():  # V60: abre por cima de qualquer tela
     _v60_tela_fornecedores(df if "df" in globals() else None)
