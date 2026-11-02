@@ -1,0 +1,34 @@
+INTEDADOSMNP V8.28.2 — MODELO OFICIAL DE PESQUISA
+
+Base: IntedadosMNP V8.28.1 COMPLETO (pré-banco).
+Modelo oficial: Pesquisa_20260915_200901_CONCLUIDA.xlsx.
+
+A planilha original é preservada. O dashboard apenas cria aliases internos quando necessário para manter a mesma estrutura e regras do Pricing.
+
+Linhas do modelo: 275
+Colunas do modelo (22):
+- Termo Pesquisado
+- Cliente Pesquisa
+- Loja/Local Pesquisa
+- Cidade Pesquisa
+- UF Pesquisa
+- Latitude Pesquisa
+- Longitude Pesquisa
+- EAN (GTIN)
+- Produto
+- Preço (R$)
+- Forma Pagamento
+- Farmácia
+- Nome Fantasia
+- CNPJ
+- Data Emissão
+- Distância (km)
+- Logradouro
+- Número
+- Cidade
+- Bairro
+- lat
+- lon
+
+Cáceres e Intedados não foram alterados.
+Validação técnica: AST + py_compile.

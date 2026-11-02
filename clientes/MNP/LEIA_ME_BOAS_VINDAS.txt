@@ -1,0 +1,8 @@
+IntedadosMNP — V8_28_3_BOAS_VINDAS
+
+Após o login:
+Olá, <nome do usuário>! 👋
+Bem-vindo à nossa ferramenta de Pricing da Intedados.
+
+Somente a saudação foi adicionada. Layout, menu, cores, bases e regras comerciais foram preservados.
+Validação técnica: AST + py_compile.

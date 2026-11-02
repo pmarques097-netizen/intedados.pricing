@@ -1,0 +1,12 @@
+{
+  "MNP": {
+    "nome": "Pricing MNP",
+    "rotulo": "MNP",
+    "regiao": "Demais estados (PA)",
+    "porta": 8530,
+    "url": "http://localhost:8530",
+    "nuvem": "https://intedados-pricing-mnp.streamlit.app",
+    "na_nuvem": true,
+    "rede": "ECONOMIZE - MAYCON"
+  }
+}

@@ -6,3 +6,5 @@ openpyxl
 xlrd
 xlsxwriter
 pyarrow
+psycopg2-binary
+pywin32; platform_system == "Windows"
