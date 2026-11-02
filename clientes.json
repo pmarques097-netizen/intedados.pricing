@@ -1,4 +1,14 @@
 {
+  "MT": {
+    "nome": "Pricing MT",
+    "rotulo": "MT",
+    "regiao": "Mato Grosso",
+    "porta": 8520,
+    "url": "http://localhost:8520",
+    "na_nuvem": true,
+    "nuvem": "https://intedados-pricing-mt.streamlit.app",
+    "rede": "ECONOMIZE - MAYCON"
+  },
   "MNP": {
     "nome": "Pricing MNP",
     "rotulo": "MNP",

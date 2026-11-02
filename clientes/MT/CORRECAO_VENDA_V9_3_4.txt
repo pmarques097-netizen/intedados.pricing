@@ -1,0 +1,2 @@
+Corrigido erro PostgreSQL: RANGE PRECEDING só é suportado com UNBOUNDED.
+Venda agora busca 89 dias anteriores + competência, calcula as médias móveis de 90 dias no aplicativo e salva apenas a competência selecionada.

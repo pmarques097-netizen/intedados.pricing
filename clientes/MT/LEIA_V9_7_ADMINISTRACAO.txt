@@ -1,0 +1,8 @@
+V9.7 — Administração reestruturada (primeira implantação: Intedados)
+Base: V9.6.1 estável.
+Área exclusiva do login paulo.
+Fluxo central: Cliente > CNPJs/Lojas > Usuários > Permissões > Auditoria.
+Inclui cadastro de cliente, múltiplos CNPJs, importação Excel/CSV, vínculo de usuários e diagnóstico.
+Os CSVs legados continuam sendo usados para preservar compatibilidade.
+Nenhum cálculo, fonte PostgreSQL, cache ou motor de Pricing foi alterado.
+Validação técnica: AST + py_compile. A validação funcional deve ser feita no Streamlit local antes de replicar para IntedadosMNP/Cáceres.

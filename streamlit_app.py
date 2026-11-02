@@ -1,6 +1,6 @@
 """INTEDADOS PRICING — tela de entrada única.
 Faz o login e leva cada usuário ao Pricing da rede dele (cada cliente roda separado, com os seus dados).
-Local: http://localhost:8510   ·   Nuvem: app principal do repositório intedados.pricing
+Local: http://localhost:8515   ·   Nuvem: app principal do repositório intedados.pricing
 """
 import base64
 import hashlib
