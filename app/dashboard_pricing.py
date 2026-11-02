@@ -8894,7 +8894,10 @@ def intedados_menu_unico_sidebar(paginas_cliente, paginas_admin, plano_atual):
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"]{gap:.35rem}
         /* ---- ordem: logo, rede, menu, (filtros), configurações e auditoria no fim ---- */
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(div[data-testid="stImage"]){order:-10 !important}
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_v65_cliente){order:-9 !important}
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_rede_card){order:-9 !important}
+        section[data-testid="stSidebar"] .st-key-sb_cfg_v65_usr, section[data-testid="stSidebar"] .st-key-sb_cfg_v65_forn{padding:2px 10px !important}
+        section[data-testid="stSidebar"] .st-key-sb_cfg_v65_usr label p, section[data-testid="stSidebar"] .st-key-sb_cfg_v65_forn label p{font-size:.86rem !important;color:#c6d6e8 !important}
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-sb_rede_alt){order:-8 !important}
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.st-key-intedados_nav_v11){order:-7 !important}
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has([class*="st-key-sb_cfg"]){order:50 !important}
@@ -22807,7 +22810,7 @@ def _v51_seletor_cliente():
             tok = _v51_passe(usuario, cod.upper())
             if url and tok:
                 itens.append(f'<a class="v51-cli" target="_self" href="{html.escape(url)}/?passe={tok}">{nome}</a>')
-    st.sidebar.markdown(
+    st.sidebar.container(key="sb_v65_cliente").markdown(  # V65: lugar fixo (logo do topo)
         """<style>
         .v51-box{margin:2px 0 10px 0}
         .v51-tit{font-size:.66rem;letter-spacing:.14em;color:#7f93ad;font-weight:700;margin:0 0 6px 2px}
@@ -23056,7 +23059,7 @@ _v59_seletor_anterior = _v51_seletor_cliente
 def _v51_seletor_cliente():
     _v59_seletor_anterior()
     if intedados_usuario_admin_rede():
-        st.sidebar.toggle("🔗 Usuários e Redes", key="v59_abrir", value=False)
+        st.sidebar.container(key="sb_cfg_v65_usr").toggle("🔗 Usuários e Redes", key="v59_abrir", value=False)  # V65: junto das configurações
 
 
 _v59_rede_anterior = intedados_renderizar_rede_principal_sidebar
@@ -23230,7 +23233,7 @@ _v60_rede_anterior = intedados_renderizar_rede_principal_sidebar
 def intedados_renderizar_rede_principal_sidebar():
     r = _v60_rede_anterior()
     if _v60_pode():
-        st.sidebar.toggle("🏭 Fornecedores", key="v60_abrir", value=False)
+        st.sidebar.container(key="sb_cfg_v65_forn").toggle("🏭 Fornecedores", key="v60_abrir", value=False)  # V65: junto das configurações
         if st.session_state.get("v60_abrir"):
             st.session_state["_v60_pendente"] = True
     return r
