@@ -67,8 +67,11 @@ def passe(usuario, destino, senha_hash, validade=1800):
 
 
 def acessos(usuario, senha):
+    return acessos_hash(usuario, hashlib.sha256(str(senha).encode()).hexdigest())
+
+
+def acessos_hash(usuario, h):
     """Clientes em que o usuário está ativo e com esta senha: [(cod, info, nome, hash, admin)]."""
-    h = hashlib.sha256(str(senha).encode()).hexdigest()
     r = []
     for cod, info in clientes().items():
         if NUVEM and not (info.get("nuvem") or info.get("na_nuvem")):
@@ -118,6 +121,8 @@ st.markdown('<div class="ip-marca"><h1>intedados<b>.pricing</b></h1><p>Inteligê
             unsafe_allow_html=True)
 
 ss = st.session_state
+if ss.get("ip_usuario") and ss.get("ip_hash"):  # recalcula sempre: cliente novo aparece sem sair e entrar
+    ss["ip_acessos"] = acessos_hash(ss["ip_usuario"], ss["ip_hash"])
 if not ss.get("ip_acessos"):
     with st.form("ip_login"):
         u = st.text_input("Usuário")
@@ -130,6 +135,7 @@ if not ss.get("ip_acessos"):
             st.error("Usuário ou senha inválidos.")
         else:
             ss["ip_usuario"] = usuario
+            ss["ip_hash"] = acs[0][3]
             ss["ip_acessos"] = [(cod, info, nome, h, adm) for cod, info, nome, h, adm in acs]
             st.rerun()
     st.stop()
@@ -157,4 +163,5 @@ else:
 if st.button("Sair", use_container_width=False):
     ss.pop("ip_acessos", None)
     ss.pop("ip_usuario", None)
+    ss.pop("ip_hash", None)
     st.rerun()
