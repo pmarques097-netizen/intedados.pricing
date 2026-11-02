@@ -98,9 +98,10 @@ def ir(url):
 
 st.markdown("""<style>
 [data-testid="stHeader"]{height:0;background:transparent}
+[data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{display:none}
 [data-testid="stToolbar"],[data-testid="stDecoration"]{display:none}
 .stApp{background:radial-gradient(1200px 600px at 50% -10%,#16305a 0%,#0a1628 55%,#070f1d 100%)}
-.block-container{padding-top:6vh;max-width:520px}
+.block-container{padding-top:6vh;max-width:520px;margin-left:auto!important;margin-right:auto!important}
 .ip-marca{text-align:center;margin-bottom:14px}
 .ip-marca h1{font-size:1.9rem;margin:6px 0 2px 0;color:#eaf1ff;letter-spacing:-.01em}
 .ip-marca h1 b{background:linear-gradient(90deg,#4f8cff,#9b6bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
